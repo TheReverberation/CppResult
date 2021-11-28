@@ -15,13 +15,10 @@ class TD;
 template <typename ReturnType>
 class ReturnWrapper {
     template <typename R, typename E> friend class Result;
-    using ValueType = std::conditional_t<std::is_rvalue_reference_v<ReturnType>, std::remove_reference_t<ReturnType>, ReturnType>; 
 public:
-    
     template <typename T>
     ReturnWrapper(T&& returned): m_returned(std::forward<T>(returned))
     {
-//        TD<ValueType> c;
   //      TD<decltype(returned)> b;
     //    TD<decltype(std::forward<T>(returned))> a;
     }
@@ -30,7 +27,7 @@ public:
     ReturnWrapper(ReturnWrapper&&) = default;
     ~ReturnWrapper() = default;
 private:
-    ValueType m_returned;
+    ReturnType m_returned;
 };
 
 template <typename T>
@@ -43,7 +40,6 @@ ReturnWrapper<T> Ok(T&& returned) {
 template <typename ErrorType>
 class ErrorWrapper {
     template <typename R, typename E> friend class Result; 
-    using ValueType = std::conditional_t<std::is_rvalue_reference_v<ErrorType>, std::remove_reference_t<ErrorType>, ErrorType>; 
 public:
 
     template <typename T>
@@ -53,7 +49,7 @@ public:
     ErrorWrapper(ErrorWrapper&&) = default;
     ~ErrorWrapper() = default;
 private:
-    ValueType m_error;
+    ErrorType m_error;
 };
 
 template <typename T>
@@ -69,21 +65,18 @@ public:
     Result(Result&& other) = default;
     ~Result() = default;
 
-
-    Result(ReturnWrapper<ReturnType>&& returned):
-        m_returned(std::move(returned.m_returned)), 
+    
+    template <typename T>
+    Result(ReturnWrapper<T>&& returned):
+        m_returned(std::forward<T>(returned.m_returned)), 
         m_error(std::nullopt)
-    {}
+    {
+    }
 
-
-    Result(ErrorWrapper<ErrorType>&& error):
+    template <typename T>
+    Result(ErrorWrapper<T>&& error):
         m_returned(std::nullopt), 
-        m_error(std::move(error.m_error)) 
-    {}
-
-    Result(ErrorWrapper<ErrorType> const& error):
-        m_returned(std::nullopt), 
-        m_error(error.m_error)
+        m_error(std::forward<T>(error.m_error)) 
     {}
 
     bool is_ok() const {
@@ -115,8 +108,10 @@ public:
     }
 
 private:
-    std::optional<ReturnType> m_returned;
-    std::optional<ErrorType> m_error;
+    using MyReturnedType = std::conditional_t<std::is_reference_v<ReturnType>, std::reference_wrapper<std::remove_reference_t<ReturnType>>, ReturnType>;
+    std::optional<MyReturnedType> m_returned;
+    using MyErrorType = std::conditional_t<std::is_reference_v<ErrorType>, std::reference_wrapper<std::remove_reference_t<ErrorType>>, ErrorType>;
+    std::optional<MyErrorType> m_error;
 };
 
 Result<double, int> safe_sqrt(double x) {
@@ -160,6 +155,5 @@ int main() {
     } else {
         std::cout << "safe_sqrt error: " << s.error() << '\n';
     }
-//    ReturnWrapper<int&&> a(5);
     return 0;
 }
