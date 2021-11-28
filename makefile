@@ -1,4 +1,4 @@
 all: main
 
 main: main.cpp
-	clang++ main.cpp -std=c++17 -o main
+	g++ main.cpp -std=c++17 -o main

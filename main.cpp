@@ -4,90 +4,32 @@
 #include <vector>
 #include <cmath>
 #include <exception>
+#include <optional>
 
-
-struct NullOptional {
-} nullopt;
-
-template <typename T>
-class Optional {
-public:
-    Optional() {
-        ptr = nullptr;
-    }
-
-    Optional(T value):
-        ptr(new T(std::move(value)))
-    {
-    }
-
-    Optional(Optional&& other) {
-        ptr = other.ptr;
-        other.ptr = nullptr;
-    }
-
-    Optional(NullOptional _):
-        ptr(nullptr)
-    {
-    }
-
-    Optional const& operator=(Optional other) {
-        *this = std::move(other);
-    } 
-
-    Optional const& operator=(Optional&& other) {
-        delete ptr;
-        ptr = other.ptr;
-        other.ptr = nullptr;
-        return *this;
-    }
-
-    Optional const& operator=(NullOptional _) {
-        delete ptr;
-        ptr = nullptr;
-    }
-
-    ~Optional() {
-        delete ptr;
-    }
-
-    T* operator->() {
-        return ptr;
-    }
-
-    T& operator*() {
-        return *ptr;
-    }
-
-    bool has_value() const {
-        return ptr != nullptr;
-    }
-
-private:
-    T* ptr;
-};
-
-template <typename T>
-Optional<T> make_optional(T value) {
-    return Optional<T>(std::move(value));
-}
+template<typename Т>
+class TD;
 
 template <typename ReturnType>
 class ReturnWrapper {
     template <typename R, typename E> friend class Result;
 public:
-    ReturnWrapper(ReturnType returned): returned_(std::move(returned)) {
-    }
+    ReturnWrapper(ReturnType&& returned)/*: m_returned(std::move(returned))*/ {}
+    ReturnWrapper(ReturnType const& returned)/*: m_returned(returned)*/  {}
+
+    TD<ReturnType> c;
+    TD<ReturnType&&> a;
+    TD<ReturnType& > b;
     ReturnWrapper(ReturnWrapper const&) = default;
     ReturnWrapper(ReturnWrapper&&) = default;
     ~ReturnWrapper() = default;
 private:
-    ReturnType returned_;
+    ReturnType m_returned;
 };
 
 template <typename T>
-ReturnWrapper<T> Ok(T returned) {
-    return ReturnWrapper<T>(std::move(returned));
+ReturnWrapper<T> Ok(T&& returned) {
+//    TD<T> a;
+    return ReturnWrapper<T>(std::forward<T>(returned));
 }
 
 
@@ -95,83 +37,121 @@ template <typename ErrorType>
 class ErrorWrapper {
     template <typename R, typename E> friend class Result; 
 public:
-    ErrorWrapper(ErrorType error): error_(std::move(error)) {}
+    ErrorWrapper(ErrorType&& error): m_error(std::move(error)) {}
+    ErrorWrapper(ErrorType const& error): m_error(error) {}
+
     ErrorWrapper(ErrorWrapper const&) = default;
     ErrorWrapper(ErrorWrapper&&) = default;
     ~ErrorWrapper() = default;
 private:
-    ErrorType error_;
+    ErrorType m_error;
 };
 
 template <typename T>
-ErrorWrapper<T> Error(T error) {
-    return ErrorWrapper<T>(std::move(error));
+ErrorWrapper<T> Error(T&& error) {
+    return ErrorWrapper<T>(std::forward<T>(error));
 }
 
-
+/*
 template <typename ReturnType, typename ErrorType>
 class Result {
 public:
     Result(Result const& other) = default;
     Result(Result&& other) = default;
-    Result(ReturnWrapper<ReturnType> returned):
-        Result(make_optional(std::move(returned.returned_)), nullopt)
+    ~Result() = default;
+
+    Result(ReturnWrapper<ReturnType>&& returned):
+        m_returned(std::move(returned.m_returned)), 
+        m_error(std::nullopt)
     {}
-    Result(ErrorWrapper<ErrorType> error):
-        Result(nullopt, make_optional(std::move(error.error_))) {
+
+    Result(ReturnWrapper<ReturnType> const& returned):
+        m_returned(returned.m_returned), 
+        m_error(std::nullopt)
+    {}
+
+    Result(ErrorWrapper<ErrorType>&& error):
+        m_returned(std::nullopt), 
+        m_error(std::move(error.m_error)) 
+    {}
+
+    Result(ErrorWrapper<ErrorType> const& error):
+        m_returned(std::nullopt), 
+        m_error(error.m_error)
+    {}
+
+    bool is_ok() const {
+        return m_returned.has_value();
     }
 
-    bool is_ok() {
-        return returned_.has_value();
+    bool is_error() const {
+        return m_error.has_value();
     }
 
-    bool is_error() {
-        return error_.has_value();
-    }
-
-    ReturnType unwrap() {
+    ReturnType unwrap()  {
         if (is_ok()) {
-            return *returned_;
+            return *m_returned;
         } else {
+#ifdef __cpp_exceptions
             throw std::string("hui");
+#else
+            std::abort();
+#endif
         }
     }
-
-    ErrorType error() {
+    
+    ReturnType unwrap()   {
+        if (is_ok()) {
+            return *std::move(m_returned);
+        } else {
+#ifdef __cpp_exceptions
+            throw std::string("hui");
+#else
+            std::abort();
+#endif
+        }
+    }
+    
+    ErrorType error()  {
         if (is_error()) {
-            return *error_;
+            return *m_error;
         } else {
             return ErrorType();
         }
     }
 
 private:
-    
-    Result(Optional<ReturnType> returned, Optional<ErrorType> error): 
-        returned_(std::move(returned)), 
-        error_(std::move(error)) {
-    }
-
-    Optional<ReturnType> returned_;
-    Optional<ErrorType> error_;
+    std::optional<ReturnType> m_returned;
+    std::optional<ErrorType> m_error;
 };
 
 Result<double, int> safe_sqrt(double x) {
     if (x < 0) {
         return Error(-1);
     } else {
-        return Ok(sqrt(x));
+        return Ok(getG());
+        //return Ok(sqrt(x));
     }
 }
+*/
+
+double g;
+double& getG() {
+    return g;
+}
+
 
 int main() {
-    int n;
+   /* int n;
     std::cin >> n;
     auto s = safe_sqrt(n);
     if (s.is_ok()) {
         std::cout << s.unwrap() << '\n';
     } else {
         std::cout << "safe_sqrt error: " << s.error() << '\n';
-    }
+    }*/
+    int a = 1;
+    ReturnWrapper<int&> w(a);
+//    Ok(getG());
     return 0;
 }
