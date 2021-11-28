@@ -5,6 +5,7 @@
 #include <cmath>
 #include <exception>
 #include <optional>
+#include <type_traits>
 
 template<typename Т>
 class TD;
@@ -12,13 +13,15 @@ class TD;
 template <typename ReturnType>
 class ReturnWrapper {
     template <typename R, typename E> friend class Result;
+    
 public:
-    ReturnWrapper(ReturnType&& returned)/*: m_returned(std::move(returned))*/ {}
-    ReturnWrapper(ReturnType const& returned)/*: m_returned(returned)*/  {}
+    ReturnWrapper(ReturnType&& returned): m_returned(std::forward<ReturnType>(returned)) {}
 
+    using my_type = const std::remove_reference_t<ReturnType>&;
+    //ReturnWrapper(my_type returned): m_returned(returned) {}
     TD<ReturnType> c;
-    TD<ReturnType&&> a;
-    TD<ReturnType& > b;
+    TD<ReturnType&&> b;
+    TD<my_type> a;
     ReturnWrapper(ReturnWrapper const&) = default;
     ReturnWrapper(ReturnWrapper&&) = default;
     ~ReturnWrapper() = default;
@@ -135,9 +138,9 @@ Result<double, int> safe_sqrt(double x) {
 }
 */
 
-double g;
-double& getG() {
-    return g;
+int g;
+const int getG() {
+    return 1;
 }
 
 
@@ -150,8 +153,14 @@ int main() {
     } else {
         std::cout << "safe_sqrt error: " << s.error() << '\n';
     }*/
-    int a = 1;
-    ReturnWrapper<int&> w(a);
+    int a = 5;
+//   ReturnWrapper<int> w0(a);
+//    ReturnWrapper<int&> w(a);
+   // ReturnWrapper<int&&> w2(getG());
+// ReturnWrapper<const int&> w3(a);
 //    Ok(getG());
+//
+    int const& b = getG();
+    int const&& c = getG();
     return 0;
 }
